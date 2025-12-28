@@ -1,6 +1,6 @@
 CC = emcc
 CFLAGS = -O3 -std=c++17 -flto
-EXPORTED_FUNCTIONS = '["_findPathWASM", "_setGridWASM", "_getGridBufferWASM"]'
+EXPORTED_FUNCTIONS = '["_findPathWASM", "_getGridBufferWASM"]'
 WASM_FLAGS = -s STANDALONE_WASM -s EXPORTED_FUNCTIONS=$(EXPORTED_FUNCTIONS) -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s ALLOW_MEMORY_GROWTH=1 --no-entry
 
 SRC = astar-cpp/astar.cpp astar-cpp/wasm_glue.cpp

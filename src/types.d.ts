@@ -1,9 +1,11 @@
 declare function findPathWASM(
-    grid: number[][],
+    width: number,
+    height: number,
     startX: number,
     startY: number,
     endX: number,
     endY: number,
     allowDiagonal: boolean,
-    heuristic: string
+    heuristic: string,
+    useCustomNeighbors: boolean
 ): number[][] | null;

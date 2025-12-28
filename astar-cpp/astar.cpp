@@ -10,6 +10,7 @@ extern "C" {
     double custom_heuristic(uintptr_t gridPtr, int32_t width, int32_t height, 
                            int32_t currentX, int32_t currentY, 
                            int32_t prevX, int32_t prevY, 
+                           int32_t prevPrevX, int32_t prevPrevY,
                            int32_t startX, int32_t startY, 
                            int32_t endX, int32_t endY);
     
@@ -23,10 +24,13 @@ double CalculateHeuristic(Node* node, Node* prev, int sx, int sy, int ex, int ey
     if (opts.heuristic == HeuristicType::Custom) {
         int px = prev ? prev->x : -1;
         int py = prev ? prev->y : -1;
+        int ppx = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].x : -1;
+        int ppy = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].y : -1;
+
         return custom_heuristic(
             (uintptr_t)grid.rawData,
             grid.width, grid.height,
-            node->x, node->y, px, py, sx, sy, ex, ey
+            node->x, node->y, px, py, ppx, ppy, sx, sy, ex, ey
         );
     }
 
@@ -43,7 +47,7 @@ double CalculateHeuristic(Node* node, Node* prev, int sx, int sy, int ex, int ey
 std::vector<Node*> GetNeighbors(Node* node, Grid& grid, const Options& opts, std::vector<int32_t>& neighborsBuf) {
     std::vector<Node*> neighbors;
     
-    if (opts.heuristic == HeuristicType::Custom) {
+    if (opts.useCustomNeighbors) {
         int px = -1, py = -1;
         if (node->parentIdx != -1) {
             Node* parent = &grid.nodes[node->parentIdx];

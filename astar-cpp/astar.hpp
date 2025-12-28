@@ -18,6 +18,7 @@ enum class HeuristicType {
 struct Options {
     bool allowDiagonal;
     HeuristicType heuristic;
+    bool useCustomNeighbors;
 };
 
 struct Node {

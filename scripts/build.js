@@ -58,7 +58,7 @@ export const WORKER_CODE = ${JSON.stringify(workerCode)};`;
     // Run tsup
     try {
         console.log('Running tsup...');
-        execSync('npx tsup src/index.ts --format cjs,esm --dts --clean', {
+        execSync('npx tsup src/index.ts --format cjs,esm --dts', {
             stdio: 'inherit',
             cwd: path.join(__dirname, '..')
         });

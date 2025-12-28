@@ -7,14 +7,15 @@ export interface Grid {
 export interface Options {
     diagonalMovement: boolean;
     heuristic: "manhattan" | "euclidean" | "custom";
-    astarWasmPath?: string;
-    customWasmPath?: string;
+    useCustomNeighbors?: boolean;
+    /** Optional WASM binary (base64 string or ArrayBuffer) */
+    customWasm?: string | ArrayBuffer;
 }
 
 export type WorkerMessage =
-    | { id: string; type: "init"; payload: { astarWasmPath: string; customWasmPath?: string } }
+    | { id: string; type: "init"; payload: { customWasm?: string | ArrayBuffer } }
     | { id: string; type: "setGrid"; payload: { grid: Int32Array; width: number; height: number } }
-    | { id: string; type: "findPath"; payload: { startX: number; startY: number; endX: number; endY: number; allowDiagonal: boolean; heuristic: string } };
+    | { id: string; type: "findPath"; payload: { startX: number; startY: number; endX: number; endY: number; allowDiagonal: boolean; heuristic: string; useCustomNeighbors: boolean } };
 
 export type WorkerResponse =
     | { id: string; status: "ready" | "ok" }
@@ -57,21 +58,20 @@ export class AStarWorker {
     // Keep track if we created an object URL to revoke it later if needed (optional)
     private objectUrl?: string;
 
-    constructor(workerPath?: string, options: Partial<Options> = {}) {
-        let finalWorkerPath = workerPath;
-
-        if (!finalWorkerPath && WORKER_CODE) {
-            const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
-            finalWorkerPath = URL.createObjectURL(blob);
-            this.objectUrl = finalWorkerPath;
+    constructor(options: Partial<Options> = {}) {
+        if (!WORKER_CODE) {
+            throw new Error("WORKER_CODE is not defined, library was likely built incorrectly");
         }
+        const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+        const finalWorkerPath = URL.createObjectURL(blob);
+        this.objectUrl = finalWorkerPath;
 
-        this.worker = new Worker(finalWorkerPath || "worker.js", { type: "module" });
+        this.worker = new Worker(finalWorkerPath, { type: "module" });
         this.options = {
             diagonalMovement: options.diagonalMovement ?? false,
             heuristic: options.heuristic ?? "manhattan",
-            astarWasmPath: options.astarWasmPath ?? "astar.wasm",
-            customWasmPath: options.customWasmPath
+            useCustomNeighbors: options.useCustomNeighbors ?? false,
+            customWasm: options.customWasm
         };
         this.ready = this.init();
     }
@@ -91,8 +91,7 @@ export class AStarWorker {
                 id,
                 type: "init",
                 payload: {
-                    astarWasmPath: this.options.astarWasmPath!,
-                    customWasmPath: this.options.customWasmPath
+                    customWasm: this.options.customWasm
                 }
             };
             this.worker.postMessage(message);
@@ -170,14 +169,15 @@ export class AStarWorker {
                     endX,
                     endY,
                     allowDiagonal: this.options.diagonalMovement,
-                    heuristic: this.options.heuristic
+                    heuristic: this.options.heuristic,
+                    useCustomNeighbors: this.options.useCustomNeighbors || false
                 }
             };
             this.worker.postMessage(message);
         });
     }
 
-    async cleanup() {
+    async terminate() {
         if (this.objectUrl) {
             URL.revokeObjectURL(this.objectUrl);
             this.objectUrl = undefined;

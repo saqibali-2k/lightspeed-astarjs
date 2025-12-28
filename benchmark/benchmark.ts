@@ -21,7 +21,7 @@ class BenchmarkApp {
     constructor() {
         this.canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
         this.ctx = this.canvas.getContext("2d")!;
-        this.astar = new AStarWorker(null, { diagonalMovement: false, heuristic: "manhattan" });
+        this.astar = new AStarWorker({ diagonalMovement: false, heuristic: "manhattan" });
 
         this.resizeGrid(20, 20);
         this.setupInputHandlers();

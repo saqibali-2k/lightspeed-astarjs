@@ -21,22 +21,13 @@ int32_t* getGridBufferWASM(int width, int height) {
 }
 
 /**
- * setGridWASM initializes the persistent grid state.
- * Now it uses the persistentGridBuffer.
- */
-EMSCRIPTEN_KEEPALIVE
-void setGridWASM(int width, int height) {
-    // globalGrid = std::make_unique<astar::Grid>(width, height, persistentGridBuffer.data());
-}
-
-/**
  * findPathWASM is the main entry point called from JS.
  * It uses the persistent globalGrid.
  */
 EMSCRIPTEN_KEEPALIVE
 int32_t* findPathWASM(int width, int height, 
                     int startX, int startY, int endX, int endY, 
-                    bool allowDiagonal, int heuristicType) {
+                    bool allowDiagonal, int heuristicType, bool useCustomNeighbors) {
     
     auto grid = std::make_unique<astar::Grid>(width, height, persistentGridBuffer.data());
     if (!grid || grid->width != width || grid->height != height) {
@@ -47,7 +38,8 @@ int32_t* findPathWASM(int width, int height,
     astar::HeuristicType hType = static_cast<astar::HeuristicType>(heuristicType);
     astar::Options opts = {
         allowDiagonal,
-        hType
+        hType,
+        useCustomNeighbors
     };
 
     // 2. Calculate path

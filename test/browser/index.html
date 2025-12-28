@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>A* Browser Test</title>
+</head>
+<body>
+    <h1>A* Browser Test Page</h1>
+    <script type="module">
+        import { AStarWorker, createGridBuffer } from '../../dist/index.mjs';
+        
+        // Expose to window for Playwright to interact with
+        window.AStarLib = {
+            AStarWorker,
+            createGridBuffer
+        };
+        console.log('AStarLib loaded and exposed to window');
+    </script>
+</body>
+</html>

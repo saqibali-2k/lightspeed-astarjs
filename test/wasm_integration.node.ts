@@ -1,4 +1,4 @@
-import { AStarWorker, createGridBuffer } from '../src/index';
+import { AStarWorker, createGridBuffer } from '../dist/index';
 
 // Polyfills for Node.js environment
 import Worker from 'web-worker';
@@ -44,7 +44,7 @@ describe('AStarWorker WASM Integration', () => {
     let astar: AStarWorker;
 
     afterEach(() => {
-        astar.cleanup();
+        astar.terminate();
     });
 
     test('Sanity: should initialize and set grid', async () => {
@@ -109,7 +109,6 @@ describe('AStarWorker WASM Integration', () => {
         const grid = { nodes, width, height };
         astar.setGrid(grid);
 
-        await astar.findPath(0, 0, 10, 10); // Warmup
         const path = await astar.findPath(0, 0, 99, 99);
 
         expect(path.length).toBeGreaterThan(0);
@@ -123,8 +122,6 @@ describe('AStarWorker WASM Integration', () => {
         const nodes = new Int32Array(sab); // All 0s
         const grid = { nodes, width, height };
         astar.setGrid(grid);
-
-        await astar.findPath(0, 0, 10, 10);
 
         const start = performance.now();
         const path = await astar.findPath(0, 0, 999, 999);

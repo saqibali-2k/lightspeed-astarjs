@@ -5,6 +5,12 @@
  */
 import type { WorkerMessage, WorkerResponse } from "./AStarWorker";
 
+// ---------- Node.js polyfills ----------
+if (typeof globalThis.atob === "undefined") {
+    // Buffer is available in Node
+    (globalThis as any).atob = (b64: string) => Buffer.from(b64, "base64").toString("binary");
+}
+
 let wasmReady: Promise<void>;
 let instance: WebAssembly.Instance;
 let exports: any;
@@ -24,7 +30,7 @@ const base64ToUint8Array = (base64: string) => {
     return bytes;
 };
 
-const initWasm = async (astarWasmPath: string = "astar.wasm", customWasmPath?: string) => {
+const initWasm = async (customWasm?: string | ArrayBuffer) => {
     const importObject: any = {
         env: {
             custom_heuristic: (gridPtr: number, width: number, height: number, curX: number, curY: number, prevX: number, prevY: number, startX: number, startY: number, endX: number, endY: number): number => {
@@ -55,46 +61,35 @@ const initWasm = async (astarWasmPath: string = "astar.wasm", customWasmPath?: s
             }
         }
     };
+    // Declare result variable before possible use in customWasm block
+    let result: WebAssembly.WebAssemblyInstantiatedSource;
 
-    if (customWasmPath) {
-        try {
-            const customResult = await WebAssembly.instantiateStreaming(fetch(customWasmPath));
-            const customExports = customResult.instance.exports as any;
-            if (customExports.custom_heuristic) {
-                importObject.env.custom_heuristic = customExports.custom_heuristic;
-            }
-            if (customExports.custom_get_neighbors) {
-                importObject.env.custom_get_neighbors = customExports.custom_get_neighbors;
-            }
-        } catch (err) {
-            console.warn("Failed to load custom WASM module, using default stubs:", err);
+
+    // Support custom WASM binary (string base64 or ArrayBuffer)
+    if (customWasm) {
+        const bytes = typeof customWasm === "string"
+            ? base64ToUint8Array(customWasm)
+            : new Uint8Array(customWasm);
+        const customResult = await WebAssembly.instantiate(bytes, importObject);
+        const customExports = customResult.instance.exports as any;
+        if (customExports.custom_heuristic) {
+            importObject.env.custom_heuristic = customExports.custom_heuristic;
+        }
+        if (customExports.custom_get_neighbors) {
+            importObject.env.custom_get_neighbors = customExports.custom_get_neighbors;
         }
     }
 
-    let result: WebAssembly.WebAssemblyInstantiatedSource;
-
     // Check for inlined WASM
-    // @ts-ignore
     // We check purely for the replaced string. esbuild will replace process.env.ASTAR_WASM_BASE64
     // with the actual string literal, so there is no runtime dependency on 'process'.
     const inlinedWasm = process.env.ASTAR_WASM_BASE64;
-
-    if (inlinedWasm) {
-        // @ts-ignore
-        const wasmBytes = base64ToUint8Array(inlinedWasm);
-        result = await WebAssembly.instantiate(wasmBytes, importObject);
-    } else {
-        // Fallback to fetch
-        result = await WebAssembly.instantiateStreaming(
-            fetch(astarWasmPath),
-            importObject
-        );
-    }
+    const wasmBytes = base64ToUint8Array(inlinedWasm);
+    result = await WebAssembly.instantiate(wasmBytes, importObject);
     instance = result.instance;
     exports = instance.exports;
 
-    // Define the global shim that mimics the Go version's API.
-    (globalThis as any).findPathWASM = (width: number, height: number, startX: number, startY: number, endX: number, endY: number, allowDiagonal: boolean, heuristic: string) => {
+    (globalThis as any).findPathWASM = (width: number, height: number, startX: number, startY: number, endX: number, endY: number, allowDiagonal: boolean, heuristic: string, useCustomNeighbors: boolean) => {
         const heuristicMap: Record<string, number> = {
             "manhattan": 0,
             "euclidean": 1,
@@ -103,7 +98,7 @@ const initWasm = async (astarWasmPath: string = "astar.wasm", customWasmPath?: s
         const hType = heuristicMap[heuristic] ?? 0;
 
         // Uses the global grid already set in WASM memory via setGridWASM.
-        const pathPtr = exports.findPathWASM(width, height, startX, startY, endX, endY, allowDiagonal, hType);
+        const pathPtr = exports.findPathWASM(width, height, startX, startY, endX, endY, allowDiagonal, hType, useCustomNeighbors);
 
         let resultPath: number[][] = [];
         if (pathPtr !== 0) {
@@ -116,7 +111,6 @@ const initWasm = async (astarWasmPath: string = "astar.wasm", customWasmPath?: s
                 ]);
             }
         }
-
         return resultPath;
     };
 };
@@ -125,7 +119,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     const { id, type, payload } = event.data;
 
     if (type === "init") {
-        wasmReady = initWasm(payload.astarWasmPath, payload.customWasmPath);
+        wasmReady = initWasm(payload.customWasm);
         await wasmReady;
         self.postMessage({ id, status: "ready" } as WorkerResponse);
     } else if (type === "setGrid") {
@@ -135,7 +129,8 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         storedHeight = height;
 
         if (!wasmReady) {
-            wasmReady = initWasm();
+            self.postMessage({ id, error: "WASM not initialized" } as WorkerResponse);
+            return;
         }
         await wasmReady;
 
@@ -146,17 +141,15 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         const wasmMem32 = new Int32Array(exports.memory.buffer);
         wasmMem32.set(grid, gridPtr / 4);
 
-        // Tell WASM to re-init the Grid object using the buffer it already has
-        exports.setGridWASM(width, height);
-
         self.postMessage({ id, status: "ok" } as WorkerResponse);
     } else if (type === "findPath") {
         if (!wasmReady) {
-            wasmReady = initWasm();
+            self.postMessage({ id, error: "WASM not initialized" } as WorkerResponse);
+            return;
         }
         await wasmReady;
 
-        const { startX, startY, endX, endY, allowDiagonal, heuristic } = payload;
+        const { startX, startY, endX, endY, allowDiagonal, heuristic, useCustomNeighbors } = payload;
 
         if (!storedGrid || gridPtr === null) {
             self.postMessage({ id, error: "Grid not set" } as WorkerResponse);
@@ -166,7 +159,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         try {
             // Updated shim call
             // @ts-ignore
-            const path = globalThis.findPathWASM(storedWidth, storedHeight, startX, startY, endX, endY, allowDiagonal, heuristic);
+            const path = globalThis.findPathWASM(storedWidth, storedHeight, startX, startY, endX, endY, allowDiagonal, heuristic, useCustomNeighbors);
             self.postMessage({ id, result: path } as WorkerResponse);
         } catch (err: any) {
             self.postMessage({ id, error: err.toString() } as WorkerResponse);
