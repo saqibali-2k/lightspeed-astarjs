@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+        "module": "esnext",
+        "target": "es6",
+        "allowJs": true,
+        "lib": [
+            "es6",
+            "dom",
+            "webworker"
+        ],
+        "esModuleInterop": true
+    },
+    "include": [
+        "src/**/*",
+        "benchmark/**/*"
+    ]
+}

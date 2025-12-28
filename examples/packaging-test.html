@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packaging Test</title>
+</head>
+
+<body>
+    <h1>Packaging Test</h1>
+    <p>Check console for output.</p>
+    <div id="status">Running...</div>
+
+    <!-- We will use the bundled ESM output -->
+    <script type="module">
+        import { AStarWorker, createGridBuffer } from '../dist/index.mjs';
+
+        async function runTest() {
+            const statusDiv = document.getElementById('status');
+            try {
+                // Initialize worker - NO PATHS NEEDED!
+                const astar = new AStarWorker();
+
+                // Create a simple grid
+                const gridData = [
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 0, 0]
+                ];
+                const grid = createGridBuffer(gridData);
+
+                console.log('Setting grid...');
+                astar.setGrid(grid);
+
+                console.log('Finding path...');
+                const start = performance.now();
+                const path = await astar.findPath(0, 0, 4, 2);
+                const end = performance.now();
+
+                console.log('Path found:', path);
+                console.log('Time taken:', end - start, 'ms');
+
+                if (path && path.length > 0) {
+                    statusDiv.textContent = 'Success! Path found: ' + JSON.stringify(path);
+                    statusDiv.style.color = 'green';
+                } else {
+                    statusDiv.textContent = 'Failed: No path found';
+                    statusDiv.style.color = 'red';
+                }
+            } catch (err) {
+                console.error(err);
+                statusDiv.textContent = 'Error: ' + err.message;
+                statusDiv.style.color = 'red';
+            }
+        }
+
+        runTest();
+    </script>
+</body>
+
+</html>

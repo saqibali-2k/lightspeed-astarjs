@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Lightspeed A* Benchmark</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .controls button,
+        .controls input {
+            margin-right: 10px;
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        canvas {
+            border: 1px solid #000;
+            display: block;
+            margin-top: 10px;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+
+        #output {
+            margin-top: 5px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Interactive Benchmark</h1>
+
+    <div class="controls">
+        <label>Width: <input type="number" id="gridWidth" value="20" style="width: 50px"></label>
+        <label>Height: <input type="number" id="gridHeight" value="20" style="width: 50px"></label>
+        <button id="btnReset">Reset Grid</button>
+        <label style="margin-left: 20px;">Algorithm:
+            <select id="algoSelect">
+                <option value="lightspeed">Lightspeed A* (WASM)</option>
+                <option value="fast-astar">fast-astar (JS)</option>
+                <option value="easystar">EasyStarJS (JS)</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="controls">
+        <button id="btnWall">Draw Wall</button>
+        <button id="btnStart" style="background-color: #e0ffe0;">Set Start (Green)</button>
+        <button id="btnEnd" style="background-color: #ffe0e0;">Set End (Red)</button>
+        <button id="btnClearCell">Eraser</button>
+        <span id="currentMode" style="margin-left: 10px; font-weight: bold;">Mode: WALL</span>
+    </div>
+
+    <div class="controls">
+        <button id="btnRun" style="font-weight: bold; background-color: #e0e0ff;">RUN BENCHMARK</button>
+        <button id="btnStress" style="font-weight: bold; background-color: #ffe0ff;">RUN STRESS TEST</button>
+    </div>
+
+    <canvas id="gridCanvas" width="400" height="400"></canvas>
+
+    <div id="status">Ready</div>
+    <div id="output"></div>
+
+    <table id="stressTable" border="1" cellpadding="5"
+        style="margin-top: 20px; border-collapse: collapse; width: 100%; display: none;">
+        <thead>
+            <tr style="background-color: #f0f0f0;">
+                <th>Grid Size</th>
+                <th>Scenario</th>
+                <th>Lightspeed A*</th>
+                <th>EasyStarJS</th>
+                <th>Fast-A* (Opt: Off)</th>
+                <th>Fast-A* (Opt: On)</th>
+            </tr>
+        </thead>
+        <tbody id="stressBody"></tbody>
+    </table>
+
+    <div id="benchmarkExplanation"
+        style="display: none; margin-top: 20px; border: 1px solid #ccc; padding: 15px; background-color: #f9f9f9;">
+        <h3>Benchmark Scenarios Explanation</h3>
+        <p><strong>Simple:</strong> A grid with no walls. It mainly shows the basic pathfinding overhead.</p>
+        <p><strong>Exhaustive:</strong> End node is completely surrounded by walls which stresses the ability of the
+            pathfinding library to scan through all nodes. There is significant memory usage in this scenario.</p>
+        <p><strong>Complex (Arc):</strong> A semi-circular wall (radius ~size/3) surrounds the end node. This forces the
+            pathfinding library to navigate around the "fortress" barrier to reach the goal, stressing the heuristic and
+            testing if an optimal path can be found.</p>
+    </div>
+
+    <!-- benchmark.js will be output by webpack -->
+    <script type="module" src="benchmark.js"></script>
+</body>
+
+</html>
