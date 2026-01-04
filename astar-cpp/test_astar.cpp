@@ -6,20 +6,29 @@
 #include <cstdint>
 #include "astar.hpp"
 
-// Global mock control
-bool g_mockAllowDiagonal = false;
+bool _useDiagonals = false;
 
 // Mock external functions needed by astar.cpp
 extern "C" {
-    double custom_heuristic(uintptr_t gridPtr, int32_t width, int32_t height, 
+    double custom_heuristic_h(uintptr_t gridPtr, int32_t width, int32_t height, 
                            int32_t currentX, int32_t currentY, 
                            int32_t prevX, int32_t prevY, 
+                           int32_t prevPrevX, int32_t prevPrevY,
                            int32_t startX, int32_t startY, 
                            int32_t endX, int32_t endY) {
         // Simple mock: just Euclidean distance
         double dx = std::abs(currentX - endX);
         double dy = std::abs(currentY - endY);
         return std::sqrt(dx * dx + dy * dy);
+    }
+
+    double custom_heuristic_g(uintptr_t gridPtr, int32_t width, int32_t height, 
+                           int32_t currentX, int32_t currentY, 
+                           int32_t prevX, int32_t prevY, 
+                           int32_t prevPrevX, int32_t prevPrevY,
+                           int32_t startX, int32_t startY, 
+                           int32_t endX, int32_t endY) {
+        return custom_heuristic_h(gridPtr, width, height, currentX, currentY, prevX, prevY, prevPrevX, prevPrevY, startX, startY, endX, endY);
     }
     
     int32_t custom_get_neighbors(uintptr_t gridPtr, int32_t width, int32_t height, 
@@ -33,12 +42,9 @@ extern "C" {
         const int dx[] = {0, 1, 0, -1, 1, 1, -1, -1};
         const int dy[] = {1, 0, -1, 0, 1, -1, 1, -1};
         
-        int limit = g_mockAllowDiagonal ? 8 : 4;
+        // Don't need diagonal neighbors for this test
+        int limit = _useDiagonals ? 8 : 4;
         
-        // This mock assumes access to grid data via the pointer, which is a bit unsafe 
-        // without more structure, but valid for what astar.cpp expects (pointer casting).
-        // For testing, we might want to just verify the mechanism or pass valid known data.
-        // But astar.cpp passes grid.rawData.
         const int32_t* gridData = (const int32_t*)gridPtr;
 
         for(int i=0; i<limit; ++i) {
@@ -80,20 +86,25 @@ void printGrid(const astar::Grid& grid, const std::vector<astar::Point>& path) {
 void runTest(const std::string& name, astar::HeuristicType heuristic, int width, int height, const std::vector<int32_t>& gridData, 
              int sx, int sy, int ex, int ey, bool expectPath, bool allowDiagonal, double expectedCost = -1.0) {
     std::string heuristicName;
-    switch(heuristic) {
-        case astar::HeuristicType::Manhattan: heuristicName = "Manhattan"; break;
-        case astar::HeuristicType::Euclidean: heuristicName = "Euclidean"; break;
-        case astar::HeuristicType::Custom: heuristicName = "Custom"; break;
+    auto useCustomNeighbors = false;
+    _useDiagonals = allowDiagonal;
+    if (heuristic == astar::HeuristicType::Manhattan) heuristicName = "Manhattan";
+    else if (heuristic == astar::HeuristicType::Euclidean) heuristicName = "Euclidean";
+    else if ((uint8_t)heuristic & (uint8_t)astar::HeuristicType::CustomG || (uint8_t)heuristic & (uint8_t)astar::HeuristicType::CustomH) {
+        heuristicName = "Custom";
+        useCustomNeighbors = true;
     }
+    else heuristicName = "Unknown";
     std::cout << "Running Test: " << name << " [" << heuristicName << "] ... ";
     
     astar::Grid grid(width, height, gridData.data());
-    astar::Options opts;
-    opts.allowDiagonal = allowDiagonal;
-    g_mockAllowDiagonal = allowDiagonal;
-    opts.heuristic = heuristic;
+    astar::Options opts {
+        heuristic,
+        allowDiagonal,
+        useCustomNeighbors
+    };
 
-    auto path = astar::FindPath(sx, sy, ex, ey, grid, opts);
+    auto path = astar::findPath(sx, sy, ex, ey, grid, opts);
 
     if (expectPath) {
         if (path.empty()) {
@@ -144,7 +155,7 @@ int main() {
     std::vector<astar::HeuristicType> heuristics = {
         astar::HeuristicType::Manhattan,
         astar::HeuristicType::Euclidean,
-        astar::HeuristicType::Custom
+        (astar::HeuristicType)((uint8_t)astar::HeuristicType::CustomG | (uint8_t)astar::HeuristicType::CustomH)
     };
 
     for (const auto& h : heuristics) {
@@ -213,11 +224,12 @@ int main() {
         // 5. Start/End on Obstacle
         {
             std::vector<int32_t> gridData = {1, 0};
-            runTest("Start on Obstacle", h, 2, 1, gridData, 0, 0, 1, 0, false, false);
+            // We can leave if starting on obstacle, but we can't arrive on one
+            runTest("Start on Obstacle", h, 2, 1, gridData, 0, 0, 1, 0, true, false);
             runTest("End on Obstacle", h, 2, 1, gridData, 1, 0, 0, 0, false, false);
         }
 
-        // 6. Large Grid (Basic Perf/Correctness)
+        // // 6. Large Grid (Basic Perf/Correctness)
         {
             int w = 100;
             int h_dim = 100;

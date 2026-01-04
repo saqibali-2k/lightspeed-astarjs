@@ -9,21 +9,27 @@
 
 namespace astar {
 
-enum class HeuristicType {
-    Manhattan,
-    Euclidean,
-    Custom
+enum class HeuristicType : uint8_t {
+    Manhattan = 1 << 0,
+    Euclidean = 1 << 1,
+    CustomG   = 1 << 2,
+    CustomH   = 1 << 3
 };
 
+constexpr bool hasHeuristicOption(HeuristicType value, HeuristicType flag) {
+    using U = std::underlying_type_t<HeuristicType>;
+    return (static_cast<U>(value) & static_cast<U>(flag)) != 0;
+}
+
 struct Options {
-    bool allowDiagonal;
     HeuristicType heuristic;
+    bool allowDiagonal;
     bool useCustomNeighbors;
 };
 
 struct Node {
     int x, y;
-    bool walkable;
+    int32_t walkable;
     double g, h, f;
     int parentIdx;
     bool closed;
@@ -33,7 +39,7 @@ struct Node {
     Node() : x(0), y(0), walkable(false), g(0), h(0), f(0), 
              parentIdx(-1), closed(false), opened(false), heapIndex(-1) {}
     
-    void init(int _x, int _y, bool _walkable) {
+    void init(int _x, int _y, int32_t _walkable) {
         x = _x; y = _y; walkable = _walkable;
         g = 0; h = 0; f = 0;
         parentIdx = -1; closed = false; opened = false; heapIndex = -1;
@@ -139,7 +145,7 @@ struct Point {
     int x, y;
 };
 
-std::vector<Point> FindPath(int startX, int startY, int endX, int endY, Grid& grid, const Options& opts);
+std::vector<Point> findPath(int startX, int startY, int endX, int endY, Grid& grid, const Options& opts);
 
 } // namespace astar
 

@@ -1,11 +1,15 @@
 Setup emsdk as submodule
 Browser-tests
 Custom heursitic tests
+
+rework parameters API
 Cleanup
     benchmark -> landing page
     custom heuristic docs and example
     better readme
         design decisions ()
         roadmap (if interest is present)
+        edge cases: starting at an obstacle
+        edge cases: ending at an obstacle
 
     

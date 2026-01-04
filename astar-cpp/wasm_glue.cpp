@@ -8,7 +8,6 @@ extern "C" {
 
 static std::vector<int32_t> resultPath;
 static std::vector<int32_t> persistentGridBuffer;
-static std::unique_ptr<astar::Grid> globalGrid;
 
 /**
  * getGridBufferWASM ensures the persistent buffer is large enough
@@ -22,34 +21,43 @@ int32_t* getGridBufferWASM(int width, int height) {
 
 /**
  * findPathWASM is the main entry point called from JS.
- * It uses the persistent globalGrid.
  */
 EMSCRIPTEN_KEEPALIVE
-int32_t* findPathWASM(int width, int height, 
-                    int startX, int startY, int endX, int endY, 
-                    bool allowDiagonal, int heuristicType, bool useCustomNeighbors) {
-    
-    auto grid = std::make_unique<astar::Grid>(width, height, persistentGridBuffer.data());
-    if (!grid || grid->width != width || grid->height != height) {
+int32_t* findPathWASM(
+    int32_t width, int32_t height,
+    int32_t startX, int32_t startY,
+    int32_t endX, int32_t endY,
+    int32_t allowDiagonal,
+    int32_t heuristicType,
+    int32_t useCustomNeighbors,
+    int32_t useCustomHeuristicH,
+    int32_t useCustomHeuristicG
+) {
+    if (persistentGridBuffer.size() < size_t(width * height)) {
         return nullptr;
     }
 
-    // 1. Configure options
-    astar::HeuristicType hType = static_cast<astar::HeuristicType>(heuristicType);
+    
+    // auto grid = std::make_unique<astar::Grid>(width, height, persistentGridBuffer.data());
+    astar::Grid grid(width, height, persistentGridBuffer.data());
+    using U = std::underlying_type_t<astar::HeuristicType>;
+    int8_t hType = (useCustomHeuristicH ? static_cast<U>(astar::HeuristicType::CustomH) : 0) |
+                   (useCustomHeuristicG ? static_cast<U>(astar::HeuristicType::CustomG) : 0) | 
+                   (heuristicType & static_cast<U>(astar::HeuristicType::Euclidean)) |
+                   (heuristicType & static_cast<U>(astar::HeuristicType::Manhattan));
+
     astar::Options opts = {
-        allowDiagonal,
-        hType,
-        useCustomNeighbors
+        static_cast<astar::HeuristicType>(hType),
+        allowDiagonal != 0,
+        useCustomNeighbors != 0
     };
 
-    // 2. Calculate path
-    auto path = astar::FindPath(startX, startY, endX, endY, *grid, opts);
-
-    // 3. Handle result
+    auto path = astar::findPath(startX, startY, endX, endY, grid, opts);
     if (path.empty()) {
         return nullptr;
     }
 
+    // Gather result
     resultPath.clear();
     resultPath.push_back(static_cast<int32_t>(path.size()));
     for (const auto& p : path) {

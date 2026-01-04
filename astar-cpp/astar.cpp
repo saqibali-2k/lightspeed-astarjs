@@ -7,27 +7,34 @@ namespace astar {
 
 // External "Custom" functions (imports)
 extern "C" {
-    double custom_heuristic(uintptr_t gridPtr, int32_t width, int32_t height, 
+    double custom_heuristic_h(uintptr_t gridPtr, int32_t width, int32_t height, 
                            int32_t currentX, int32_t currentY, 
                            int32_t prevX, int32_t prevY, 
                            int32_t prevPrevX, int32_t prevPrevY,
                            int32_t startX, int32_t startY, 
                            int32_t endX, int32_t endY);
-    
+
+    double custom_heuristic_g(uintptr_t gridPtr, int32_t width, int32_t height, 
+                           int32_t currentX, int32_t currentY, 
+                           int32_t prevX, int32_t prevY, 
+                           int32_t prevPrevX, int32_t prevPrevY,
+                           int32_t startX, int32_t startY, 
+                           int32_t endX, int32_t endY);
+
     int32_t custom_get_neighbors(uintptr_t gridPtr, int32_t width, int32_t height, 
                                  int32_t x, int32_t y, 
                                  int32_t prevX, int32_t prevY, 
                                  uintptr_t bufferPtr);
 }
 
-double CalculateHeuristic(Node* node, Node* prev, int sx, int sy, int ex, int ey, Grid& grid, const Options& opts) {
-    if (opts.heuristic == HeuristicType::Custom) {
+double calculateHeuristicH(Node* node, Node* prev, int sx, int sy, int ex, int ey, Grid& grid, const Options& opts) {
+    if (hasHeuristicOption(opts.heuristic, HeuristicType::CustomH)) {
         int px = prev ? prev->x : -1;
         int py = prev ? prev->y : -1;
         int ppx = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].x : -1;
         int ppy = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].y : -1;
 
-        return custom_heuristic(
+        return custom_heuristic_h(
             (uintptr_t)grid.rawData,
             grid.width, grid.height,
             node->x, node->y, px, py, ppx, ppy, sx, sy, ex, ey
@@ -37,14 +44,35 @@ double CalculateHeuristic(Node* node, Node* prev, int sx, int sy, int ex, int ey
     double dx = std::abs(node->x - ex);
     double dy = std::abs(node->y - ey);
 
-    if (opts.heuristic == HeuristicType::Euclidean) {
+    if (hasHeuristicOption(opts.heuristic, HeuristicType::Euclidean)) {
         return std::sqrt(dx * dx + dy * dy);
     }
     // Default Manhattan
     return dx + dy;
 }
 
-std::vector<Node*> GetNeighbors(Node* node, Grid& grid, const Options& opts, std::vector<int32_t>& neighborsBuf) {
+double calculateHeuristicG(Node* node, Node* prev, int sx, int sy, int ex, int ey, Grid& grid, const Options& opts) {
+    if (hasHeuristicOption(opts.heuristic, HeuristicType::CustomG)) {
+        int px = prev ? prev->x : -1;
+        int py = prev ? prev->y : -1;
+        int ppx = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].x : -1;
+        int ppy = (prev && prev->parentIdx != -1) ? grid.nodes[prev->parentIdx].y : -1;
+
+        return custom_heuristic_g(
+            (uintptr_t)grid.rawData,
+            grid.width, grid.height,
+            node->x, node->y, px, py, ppx, ppy, sx, sy, ex, ey
+        );
+    }
+
+    // Euclidean distance is default if no custom G is specified
+    // This the currently the only supported option for G
+    double dx = std::abs(node->x - prev->x);
+    double dy = std::abs(node->y - prev->y);
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+std::vector<Node*> getNeighbors(Node* node, Grid& grid, const Options& opts, std::vector<int32_t>& neighborsBuf) {
     std::vector<Node*> neighbors;
     
     if (opts.useCustomNeighbors) {
@@ -85,19 +113,19 @@ std::vector<Node*> GetNeighbors(Node* node, Grid& grid, const Options& opts, std
     return neighbors;
 }
 
-std::vector<Point> FindPath(int startX, int startY, int endX, int endY, Grid& grid, const Options& opts) {
+std::vector<Point> findPath(int startX, int startY, int endX, int endY, Grid& grid, const Options& opts) {
     Node* startNode = grid.getNode(startX, startY);
     Node* endNode = grid.getNode(endX, endY);
 
-    if (!startNode || !endNode || !startNode->walkable || !endNode->walkable) {
+    BinaryHeap openList;
+    std::vector<int32_t> neighborsBuf(16);
+    if (!startNode || !endNode) {
         return {};
     }
 
-    BinaryHeap openList;
-    std::vector<int32_t> neighborsBuf(16);
-
+    
     startNode->g = 0;
-    startNode->h = CalculateHeuristic(startNode, nullptr, startX, startY, endX, endY, grid, opts);
+    startNode->h = calculateHeuristicH(startNode, nullptr, startX, startY, endX, endY, grid, opts);
     startNode->f = startNode->g + startNode->h;
     startNode->opened = true;
     openList.push(startNode);
@@ -118,16 +146,16 @@ std::vector<Point> FindPath(int startX, int startY, int endX, int endY, Grid& gr
             return path;
         }
 
-        auto neighbors = GetNeighbors(current, grid, opts, neighborsBuf);
+        auto neighbors = getNeighbors(current, grid, opts, neighborsBuf);
         for (Node* neighbor : neighbors) {
             if (neighbor->closed) continue;
 
-            double dist = std::sqrt(std::pow(neighbor->x - current->x, 2) + std::pow(neighbor->y - current->y, 2));
+            double dist = calculateHeuristicG(neighbor, current, startX, startY, endX, endY, grid, opts);
             double tentativeG = current->g + dist;
 
             if (!neighbor->opened || tentativeG < neighbor->g) {
                 neighbor->g = tentativeG;
-                neighbor->h = CalculateHeuristic(neighbor, current, startX, startY, endX, endY, grid, opts);
+                neighbor->h = calculateHeuristicH(neighbor, current, startX, startY, endX, endY, grid, opts);
                 neighbor->f = neighbor->g + neighbor->h;
                 neighbor->parentIdx = grid.getIdx(current);
 
