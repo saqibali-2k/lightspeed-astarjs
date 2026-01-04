@@ -1,6 +1,12 @@
 import { AStarWorker } from "../dist/index.mjs";
 
-type CellType = 0 | 1; // 0 = empty, 1 = wall
+async function fetchWasm(url: string) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch WASM: ${response.status}`);
+    }
+    return await response.arrayBuffer();
+}
 
 class BenchmarkApp {
     private canvas: HTMLCanvasElement;
@@ -18,10 +24,14 @@ class BenchmarkApp {
 
     private astar: AStarWorker;
 
-    constructor() {
+    constructor(customLogic?: ArrayBuffer) {
         this.canvas = document.getElementById("gridCanvas") as HTMLCanvasElement;
         this.ctx = this.canvas.getContext("2d")!;
-        this.astar = new AStarWorker({ diagonalMovement: false, heuristic: "manhattan" });
+        this.astar = new AStarWorker({
+            customWasm: customLogic,
+            heuristicOptions: { heuristic: "custom", useCustomHeuristicG: true, useCustomHeuristicH: true }
+        });
+        // this.astar = new AStarWorker({ customWasm: customLogic, heuristicOptions: { heuristic: "manhattan" } });
 
         this.resizeGrid(20, 20);
         this.setupInputHandlers();
@@ -258,8 +268,10 @@ class BenchmarkApp {
 
             // Scenario 2: Exhaustive
             const wallsExhaustive = [
-                [size - 2, size - 1],
-                [size - 1, size - 2]
+                [size - 3, size - 1],
+                [size - 3, size - 2],
+                [size - 1, size - 3],
+                [size - 2, size - 3]
             ];
             await this.runScenario(size, "Exhaustive", wallsExhaustive, Grid, Astar, EasyStarJS, tbody);
 
@@ -395,4 +407,4 @@ class BenchmarkApp {
 }
 
 // Init
-new BenchmarkApp();
+fetchWasm("custom_logic.wasm").then(wasm => new BenchmarkApp(wasm));

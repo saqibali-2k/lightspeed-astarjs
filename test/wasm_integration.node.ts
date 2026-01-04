@@ -48,7 +48,7 @@ describe('AStarWorker WASM Integration', () => {
     });
 
     test('Sanity: should initialize and set grid', async () => {
-        astar = new AStarWorker();
+        astar = new AStarWorker({});
 
         const grid = [
             [0, 0, 0],
@@ -63,7 +63,7 @@ describe('AStarWorker WASM Integration', () => {
     });
 
     test('Sanity: should find path bypassing obstacle', async () => {
-        astar = new AStarWorker();
+        astar = new AStarWorker({});
 
         // 3x3 Grid
         // S . .
@@ -85,7 +85,7 @@ describe('AStarWorker WASM Integration', () => {
     });
 
     test('Sanity: should return empty array when no path', async () => {
-        astar = new AStarWorker();
+        astar = new AStarWorker({});
         const grid = [
             [0, 1, 0],
             [1, 1, 1],
@@ -97,7 +97,7 @@ describe('AStarWorker WASM Integration', () => {
     });
 
     test('Performance: 100x100 grid should find path', async () => {
-        astar = new AStarWorker();
+        astar = new AStarWorker({});
         const width = 100;
         const height = 100;
         const sab = new SharedArrayBuffer(width * height * 4);
@@ -115,7 +115,7 @@ describe('AStarWorker WASM Integration', () => {
     });
 
     test('Performance: 1000x1000 empty grid should search within 200ms', async () => {
-        astar = new AStarWorker();
+        astar = new AStarWorker({});
         const width = 1000;
         const height = 1000;
         const sab = new SharedArrayBuffer(width * height * 4);

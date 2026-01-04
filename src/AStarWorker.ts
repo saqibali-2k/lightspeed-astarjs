@@ -5,22 +5,14 @@ export interface Grid {
 }
 
 export interface Options {
-    diagonalMovement: boolean;
-    heuristic: "manhattan" | "euclidean" | "custom";
-    useCustomNeighbors?: boolean;
-    /** Optional WASM binary (base64 string or ArrayBuffer) */
     customWasm?: string | ArrayBuffer;
+    heuristicOptions?: HeuristicOptions;
+    traversalOptions?: TraversalOptions;
 }
 
-export type WorkerMessage =
-    | { id: string; type: "init"; payload: { customWasm?: string | ArrayBuffer } }
-    | { id: string; type: "setGrid"; payload: { grid: Int32Array; width: number; height: number } }
-    | { id: string; type: "findPath"; payload: { startX: number; startY: number; endX: number; endY: number; allowDiagonal: boolean; heuristic: string; useCustomNeighbors: boolean } };
-
-export type WorkerResponse =
-    | { id: string; status: "ready" | "ok" }
-    | { id: string; result: number[][] }
-    | { id: string; error: string };
+// Preset options | Custom options
+type HeuristicOptions = { heuristic: "manhattan" | "euclidean" } | { heuristic: "custom"; useCustomHeuristicG?: boolean; useCustomHeuristicH?: boolean };
+type TraversalOptions = { allowDiagonal?: boolean, useCustomNeighbors?: boolean };
 
 /**
  * Utility to create a Grid compatible with AStarWorker from a 2D array.
@@ -47,18 +39,23 @@ export function createGridBuffer(nodes: number[][]): Grid {
 
 import { WORKER_CODE } from './worker-generated';
 
-// ... (keep Grid and Options interfaces as is ... they are above line 1)
-
 export class AStarWorker {
     private worker: Worker;
     private ready: Promise<void>;
     private grid?: Grid;
-    private options: Options;
+    private readonly options = {
+        heuristic: "manhattan",
+        allowDiagonal: false,
+        useCustomNeighbors: false,
+        useCustomHeuristicH: false,
+        useCustomHeuristicG: false,
+        customWasm: null as string | ArrayBuffer,
+    };
     private gridReady: Promise<void> = Promise.resolve();
     // Keep track if we created an object URL to revoke it later if needed (optional)
     private objectUrl?: string;
 
-    constructor(options: Partial<Options> = {}) {
+    constructor(options: Options) {
         if (!WORKER_CODE) {
             throw new Error("WORKER_CODE is not defined, library was likely built incorrectly");
         }
@@ -68,10 +65,10 @@ export class AStarWorker {
 
         this.worker = new Worker(finalWorkerPath, { type: "module" });
         this.options = {
-            diagonalMovement: options.diagonalMovement ?? false,
-            heuristic: options.heuristic ?? "manhattan",
-            useCustomNeighbors: options.useCustomNeighbors ?? false,
-            customWasm: options.customWasm
+            ...this.options,
+            ...options.heuristicOptions,
+            ...options.traversalOptions,
+            customWasm: options.customWasm,
         };
         this.ready = this.init();
     }
@@ -168,9 +165,7 @@ export class AStarWorker {
                     startY,
                     endX,
                     endY,
-                    allowDiagonal: this.options.diagonalMovement,
-                    heuristic: this.options.heuristic,
-                    useCustomNeighbors: this.options.useCustomNeighbors || false
+                    ...this.options,
                 }
             };
             this.worker.postMessage(message);
@@ -180,10 +175,10 @@ export class AStarWorker {
     async terminate() {
         if (this.objectUrl) {
             URL.revokeObjectURL(this.objectUrl);
-            this.objectUrl = undefined;
+            this.objectUrl = null;
         }
         this.worker.terminate();
     }
-}
 
+}
 

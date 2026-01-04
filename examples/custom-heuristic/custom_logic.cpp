@@ -7,14 +7,14 @@ extern "C" {
 /**
  * custom_heuristic: Manhattan distance + punishment for bends.
  */
-double custom_heuristic(uintptr_t gridPtr, int32_t width, int32_t height, 
+double custom_heuristic_g(uintptr_t gridPtr, int32_t width, int32_t height, 
                        int32_t curX, int32_t curY, 
                        int32_t prevX, int32_t prevY, 
                        int32_t prevPrevX, int32_t prevPrevY,
                        int32_t startX, int32_t startY, 
                        int32_t endX, int32_t endY) {
     
-    double h = std::abs(curX - endX) + std::abs(curY - endY);
+    double h = 0;
 
     // Punish bends
     if (prevPrevX != -1) {
@@ -29,6 +29,16 @@ double custom_heuristic(uintptr_t gridPtr, int32_t width, int32_t height,
     }
 
     return h;
+}
+
+double custom_heuristic_h(uintptr_t gridPtr, int32_t width, int32_t height, 
+                       int32_t curX, int32_t curY, 
+                       int32_t prevX, int32_t prevY, 
+                       int32_t prevPrevX, int32_t prevPrevY,
+                       int32_t startX, int32_t startY, 
+                       int32_t endX, int32_t endY) {
+    
+    return std::abs(curX - endX) + std::abs(curY - endY);
 }
 
 /**
