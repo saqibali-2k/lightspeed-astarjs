@@ -19,6 +19,13 @@ This project implements the A* algorithm in C++ to leverage its raw performance 
 ```bash
 npm install lightspeed-astar
 ```
+OR
+
+```html
+<script type="module">
+  import { AStarWorker, createGridBuffer } from "https://cdn.jsdelivr.net/npm/lightspeed-astarjs@latest/+esm";
+</script>
+```
 
 
 ## Usage
