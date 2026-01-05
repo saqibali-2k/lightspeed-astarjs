@@ -64,18 +64,6 @@ export const WORKER_CODE = ${JSON.stringify(workerCode)};`;
         });
         console.log('Build complete!');
 
-        // 4. Build Benchmark
-        console.log('Building Benchmark...');
-        await esbuild.build({
-            entryPoints: [path.join(__dirname, '../benchmark/benchmark.ts')],
-            bundle: true,
-            outfile: path.join(__dirname, '../benchmark/benchmark.js'),
-            format: 'esm',
-            minify: false,
-            sourcemap: true,
-            platform: 'browser',
-        });
-        console.log('Benchmark built: benchmark/benchmark.js');
     } catch (e) {
         console.error('Build failed', e);
         process.exit(1);

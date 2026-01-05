@@ -156,3 +156,11 @@ See `test/wasm_integration.node.ts` for an example of how to do this.
   ```bash
   make test
   ```
+
+# Future Enhancements
+
+If people are interested...
+
+- Support for multiple types of obstacles
+    - This is currently possible if you use custom logic through a WASM side module, but let's support a JS only way of doing this
+- Multi-threading (probably a meet-in-the-middle approach)
