@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lightspeed-astarjs - Blazingly Fast A* Pathfinding</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jura:wght@300..700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/easystarjs@0.4.4/bin/easystar-0.4.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pathfinding@0.4.18/visual/lib/pathfinding-browser.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --cell-size: 25px;
+        }
+
+        @media (max-width: 800px) {
+            :root {
+                --cell-size: 18px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            :root {
+                --cell-size: 12px;
+            }
+        }
+
+        body {
+            font-family: 'Jura', sans-serif;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            margin-bottom: 40px;
+            border: 3px solid rgba(255, 182, 193, 0.3);
+            box-shadow: 0 8px 32px rgba(255, 182, 193, 0.1);
+        }
+
+        h1 {
+            font-size: 3.5em;
+            background: linear-gradient(45deg, #ffb3d9, #c6a5f5, #a8d8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.5em;
+            color: #ffd1dc;
+            margin-bottom: 30px;
+        }
+
+        .install-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            border: 2px solid #ffb3d9;
+            position: relative;
+        }
+
+        .install-box code {
+            font-family: 'Courier New', monospace;
+            color: #a8d8ff;
+            font-size: 1.2em;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            color: #ffb3d9;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            margin: 0;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 179, 217, 0.2);
+            transform: scale(1.1);
+            box-shadow: none;
+        }
+
+        .copy-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .copy-feedback {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffb3d9;
+            color: #1a1a2e;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.8em;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+
+        .copy-feedback.show {
+            opacity: 1;
+            top: -30px;
+        }
+
+        .demo-section {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            padding: 40px;
+            margin-bottom: 40px;
+            border: 3px solid rgba(168, 216, 255, 0.3);
+        }
+
+        h2 {
+            font-size: 2.5em;
+            color: #ffb3d9;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .demo-controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ffb3d9, #c6a5f5);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 5px;
+            font-family: inherit;
+            font-weight: bold;
+            color: #1a1a2e;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 179, 217, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 179, 217, 0.6);
+        }
+
+        #grid {
+            display: grid;
+            gap: 2px;
+            justify-content: center;
+            margin: 20px auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 15px;
+            max-width: fit-content;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background: #2d3561;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cell:hover {
+            transform: scale(1.1);
+        }
+
+        .cell.wall {
+            background: transparent;
+            position: relative;
+            overflow: visible;
+        }
+
+        /* Asteroid SVG Styling */
+        .cell.wall::before {
+            content: '';
+            position: absolute;
+            width: 140%;
+            height: 140%;
+            background-image: url('asteroid.svg');
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            top: -20%;
+            left: -20%;
+            z-index: 10;
+        }
+
+        /* Rotation variants for variety */
+        .cell.wall.rotate-0::before {
+            transform: rotate(0deg);
+        }
+
+        .cell.wall.rotate-90::before {
+            transform: rotate(90deg);
+        }
+
+        .cell.wall.rotate-180::before {
+            transform: rotate(180deg);
+        }
+
+        .cell.wall.rotate-270::before {
+            transform: rotate(270deg);
+        }
+
+
+        .cell.start {
+            background: radial-gradient(circle, #a8d8ff, #6baeff);
+            box-shadow: 0 0 15px #a8d8ff;
+        }
+
+        .cell.end {
+            background: radial-gradient(circle, #ffb3d9, #ff80bf);
+            box-shadow: 0 0 15px #ffb3d9;
+        }
+
+        .cell.path {
+            background: radial-gradient(circle, #b19d30, #aa9f3d);
+            animation: glow 0.5s ease-in;
+        }
+
+        .cell.visited {
+            background: rgba(198, 165, 245, 0.4);
+        }
+
+        @keyframes glow {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .spaceship {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .spaceship-body {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 16px solid #a8d8ff;
+            top: 2px;
+            left: 4px;
+            filter: drop-shadow(0 0 4px #a8d8ff);
+        }
+
+        .spaceship-flame {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 8px solid #ff6b35;
+            top: 18px;
+            left: 6px;
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+
+            0%,
+            100% {
+                border-top-color: #ff6b35;
+                transform: scaleY(1);
+            }
+
+            50% {
+                border-top-color: #ffd700;
+                transform: scaleY(0.8);
+            }
+        }
+
+        .stats {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #a8d8ff;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: rgba(255, 255, 255, 0.05);
+            min-width: 600px;
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #c6a5f5, #ffb3d9);
+            color: #1a1a2e;
+            padding: 20px;
+            font-size: 1.2em;
+        }
+
+        .comparison-table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .comparison-table tr:first-child td {
+            font-weight: bold;
+            background: rgba(168, 216, 255, 0.2);
+            color: #a8d8ff;
+        }
+
+        .benchmark-controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .benchmark-progress {
+            font-size: 0.9em;
+            color: #a8d8ff;
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+        .fast {
+
+            color: #90ee90;
+            font-weight: bold;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #ffd1dc;
+            font-size: 1.1em;
+        }
+
+        footer a {
+            color: #ffb3d9;
+            text-decoration: none;
+            border-bottom: 2px solid rgba(255, 179, 217, 0.3);
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        footer a:hover {
+            color: #a8d8ff;
+            border-bottom: 2px solid #a8d8ff;
+            text-shadow: 0 0 10px rgba(168, 216, 255, 0.5);
+        }
+
+        .logo-emoji {
+            font-size: 3em;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1em;
+        }
+
+        .legend-box {
+            width: 25px;
+            height: 25px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Spinner for benchmarking */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #a8d8ff;
+            animation: spin 1s ease-in-out infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Worst Case Toggle Styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #a8d8ff;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s;
+            border-radius: 24px;
+            border: 2px solid rgba(255, 179, 217, 0.3);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #ffb3d9;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: rgba(255, 179, 217, 0.2);
+            border-color: #ffb3d9;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Tooltip Styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            color: #ffb3d9;
+            margin-left: 5px;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 250px;
+            background-color: #1a1a2e;
+            color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            padding: 10px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid #ffb3d9;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="stars" id="stars"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo-emoji">⚡</div>
+            <h1>lightspeed-astarjs</h1>
+            <p class="subtitle">Blazingly fast A* pathfinding for the web</p>
+            <div class="install-box">
+                <button class="copy-btn" onclick="copyInstallCmd()" title="Copy to clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
+                <code id="install-cmd">npm install lightspeed-astarjs</code>
+                <div id="copy-feedback" class="copy-feedback">Copied!</div>
+            </div>
+        </header>
+
+        <div class="demo-section">
+            <h2>Demo</h2>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-box" style="background: radial-gradient(circle, #a8d8ff, #6baeff);"></div>
+                    <span>Start</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box" style="background: radial-gradient(circle, #ffb3d9, #ff80bf);"></div>
+                    <span>End</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box wall" style="position: relative;"></div>
+                    <span>Asteroid</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box" style="background: radial-gradient(circle, #ffd700, #ffed4e);"></div>
+                    <span>Path</span>
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button onclick="findPath()">Find Path 🌟</button>
+                <button onclick="clearPath()">Clear Path</button>
+                <button onclick="resetGrid()">Reset Grid</button>
+                <button onclick="randomWalls()">Random Asteroids</button>
+            </div>
+            <div style="position: relative;">
+                <div id="grid"></div>
+            </div>
+            <div class="stats">
+                <div id="stats">Click "Find Path" to search!</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>Performance Comparison</h2>
+            <div class="benchmark-controls">
+                <div class="toggle-container">
+                    <span>Worst Case Scenario</span>
+                    <label class="switch">
+                        <input type="checkbox" id="worst-case-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="tooltip">ⓘ
+                        <span class="tooltiptext">Surrounds the end destination with asteroids to force an exhaustive
+                            search of the entire reachable grid. This measures the raw performance of the engine's
+                            search breadth.</span>
+                    </div>
+                </div>
+                <button id="run-benchmarks-btn" onclick="runBenchmarks()">Run Real Benchmarks 🚀</button>
+                <div id="benchmark-status" class="benchmark-progress"></div>
+            </div>
+            <div class="table-wrapper">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Library</th>
+                            <th>100x100</th>
+                            <th>500x500</th>
+                            <th>1000x1000</th>
+                        </tr>
+                    </thead>
+                    <tbody id="benchmark-body">
+                        <tr id="row-lightspeed">
+                            <td>lightspeed-astarjs</td>
+                            <td class="cell-100 fast">0.479ms</td>
+                            <td class="cell-500 fast">4.445ms</td>
+                            <td class="cell-1000 fast">17.401ms</td>
+                        </tr>
+                        <tr id="row-easystar">
+                            <td>easystarjs</td>
+                            <td class="cell-100">0.455ms</td>
+                            <td class="cell-500">7.098ms</td>
+                            <td class="cell-1000">32.137ms</td>
+                        </tr>
+                        <tr id="row-pathfinding">
+                            <td>pathfinding.js</td>
+                            <td class="cell-100">0.287ms</td>
+                            <td class="cell-500">6.014ms</td>
+                            <td class="cell-1000">34.208ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p style="text-align: center; margin-top: 20px; color: #ffd1dc;">
+                * Benchmarked with 10% obstacles and 100 iterations per grid size. Times are in ms.
+            </p>
+        </div>
+
+
+        <footer>
+            <p style="margin-top: 10px;">⭐ Star us on <a
+                    href="https://github.com/saqibali-2k/lightspeed-astarjs">GitHub</a>!
+            </p>
+        </footer>
+    </div>
+
+
+    <script type="module">
+        import { AStarWorker, createGridBuffer } from '../dist/index.mjs';
+
+        // Make library available to legacy scripts
+        window.AStarLib = { AStarWorker, createGridBuffer };
+
+        // Initialize AStarWorker
+        window.astarWorker = new AStarWorker();
+    </script>
+
+    <script>
+
+        // Generate stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+
+        // Grid setup
+        let ROWS = 20;
+        let COLS = 30;
+        let grid = [];
+        let start = { x: 2, y: 2 };
+        let end = { x: COLS - 3, y: ROWS - 3 };
+
+        function initGrid() {
+            const gridEl = document.getElementById('grid');
+            const containerWidth = document.querySelector('.demo-section').offsetWidth - 80; // Padding
+
+            // Get cell size from CSS variable
+            const dummyCell = document.createElement('div');
+            dummyCell.className = 'cell';
+            dummyCell.style.visibility = 'hidden';
+            gridEl.appendChild(dummyCell);
+            const cellSize = dummyCell.offsetWidth || 25;
+            gridEl.removeChild(dummyCell);
+
+            COLS = Math.max(10, Math.floor(containerWidth / (cellSize + 4))); // More padding for gaps
+
+            // Limit ROWS to fit within viewport height too
+            const maxRowsByHeight = Math.max(10, Math.floor((window.innerHeight * 0.4) / (cellSize + 4)));
+            ROWS = Math.min(maxRowsByHeight, Math.max(10, Math.floor(COLS * 0.5)));
+
+            // Limit max dimensions for performance/density
+            if (COLS > 35) COLS = 35;
+            if (ROWS > 20) ROWS = 20;
+
+            // Adjust start/end
+            start = { x: 2, y: 2 };
+            end = { x: COLS - 3, y: ROWS - 3 };
+
+            gridEl.style.gridTemplateColumns = `repeat(${COLS}, var(--cell-size))`;
+            gridEl.innerHTML = '';
+            grid = [];
+
+            for (let y = 0; y < ROWS; y++) {
+                grid[y] = [];
+                for (let x = 0; x < COLS; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    if (x === start.x && y === start.y) {
+                        cell.classList.add('start');
+                    } else if (x === end.x && y === end.y) {
+                        cell.classList.add('end');
+                    }
+
+                    cell.onclick = () => toggleWall(x, y);
+                    gridEl.appendChild(cell);
+                    grid[y][x] = { wall: false, element: cell };
+                }
+            }
+        }
+
+        function toggleWall(x, y) {
+            if ((x === start.x && y === start.y) || (x === end.x && y === end.y)) return;
+
+            grid[y][x].wall = !grid[y][x].wall;
+            const cell = grid[y][x].element;
+            cell.classList.toggle('wall');
+
+            if (grid[y][x].wall) {
+                // Randomly assign a rotation for variety
+                const rotations = [0, 90, 180, 270];
+                const rotation = rotations[Math.floor(Math.random() * rotations.length)];
+                cell.classList.add(`rotate-${rotation}`);
+            } else {
+                cell.classList.remove('rotate-0', 'rotate-90', 'rotate-180', 'rotate-270');
+            }
+        }
+
+        function clearPath(resetText = true) {
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    grid[y][x].element.classList.remove('path', 'visited');
+                }
+            }
+
+            if (resetText) {
+                document.getElementById('stats').textContent = 'Path cleared! Ready for a new search.';
+            }
+        }
+
+        function resetGrid() {
+            initGrid();
+            document.getElementById('stats').textContent = 'Grid reset! Click "Find Path" to see the magic!';
+        }
+
+        function randomWalls() {
+            clearPath();
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if ((x === start.x && y === start.y) || (x === end.x && y === end.y)) continue;
+
+                    const shouldBeWall = Math.random() < 0.25;
+                    grid[y][x].wall = shouldBeWall;
+                    const cell = grid[y][x].element;
+                    cell.classList.toggle('wall', shouldBeWall);
+
+                    if (shouldBeWall) {
+                        // Randomly assign a rotation for variety
+                        cell.classList.remove('rotate-0', 'rotate-90', 'rotate-180', 'rotate-270');
+                        const rotations = [0, 90, 180, 270];
+                        const rotation = rotations[Math.floor(Math.random() * rotations.length)];
+                        cell.classList.add(`rotate-${rotation}`);
+                    } else {
+                        cell.classList.remove('rotate-0', 'rotate-90', 'rotate-180', 'rotate-270');
+                    }
+                }
+            }
+        }
+
+        async function findPath() {
+            clearPath(false);
+            const startTime = performance.now();
+
+            // Convert current grid to numeric format for AStarWorker
+            const numericGrid = grid.map(row => row.map(cell => cell.wall ? 1 : 0));
+            const gridBuffer = AStarLib.createGridBuffer(numericGrid);
+
+            astarWorker.setGrid(gridBuffer);
+
+            try {
+                const path = await astarWorker.findPath(start.x, start.y, end.x, end.y);
+                const findTime = (performance.now() - startTime).toFixed(2);
+
+                if (path && path.length > 0) {
+                    // Convert back to our coordinate format [{x, y}] for the animation functions
+                    const formattedPath = path.map(([x, y]) => ({ x, y }));
+
+                    // Basic animation delay
+                    setTimeout(() => {
+                        formattedPath.forEach((p, i) => {
+                            setTimeout(() => {
+                                if (!(p.x === start.x && p.y === start.y) && !(p.x === end.x && p.y === end.y)) {
+                                    grid[p.y][p.x].element.classList.add('path');
+                                }
+                            }, i * 30);
+                        });
+
+                        animateSpaceship(formattedPath);
+                        document.getElementById('stats').textContent =
+                            `✨ Path found! Length: ${path.length} steps | Time: ${findTime}ms`;
+                    }, 100);
+                } else {
+                    document.getElementById('stats').textContent =
+                        `❌ No path found! Time: ${findTime}ms`;
+                }
+            } catch (error) {
+                console.error("Pathfinding error:", error);
+                document.getElementById('stats').textContent = `⚠️ Error: ${error.message}`;
+            }
+        }
+
+        function animateSpaceship(path) {
+            // Remove any existing spaceship
+            const oldShip = document.querySelector('.spaceship');
+            if (oldShip) oldShip.remove();
+
+            // Create spaceship
+            const spaceship = document.createElement('div');
+            spaceship.className = 'spaceship';
+            spaceship.innerHTML = `
+                <div class="spaceship-body"></div>
+                <div class="spaceship-flame"></div>
+            `;
+
+            const gridEl = document.getElementById('grid');
+            gridEl.parentElement.style.position = 'relative';
+            gridEl.parentElement.appendChild(spaceship);
+
+            let currentIndex = 0;
+
+            function moveToNext() {
+                if (currentIndex >= path.length) {
+                    setTimeout(() => spaceship.remove(), 500);
+                    return;
+                }
+
+                const point = path[currentIndex];
+                const cell = grid[point.y][point.x].element;
+                const rect = cell.getBoundingClientRect();
+                const containerRect = gridEl.parentElement.getBoundingClientRect();
+
+                const x = rect.left - containerRect.left + (rect.width - 20) / 2;
+                const y = rect.top - containerRect.top + (rect.height - 20) / 2;
+
+                // Calculate direction for rotation
+                if (currentIndex < path.length - 1) {
+                    const next = path[currentIndex + 1];
+                    const dx = next.x - point.x;
+                    const dy = next.y - point.y;
+                    let angle = 0;
+
+                    if (dx > 0) angle = 90;
+                    else if (dx < 0) angle = -90;
+                    else if (dy > 0) angle = 180;
+                    else if (dy < 0) angle = 0;
+
+                    spaceship.style.transform = `rotate(${angle}deg)`;
+                }
+
+                spaceship.style.left = x + 'px';
+                spaceship.style.top = y + 'px';
+                spaceship.style.transition = 'left 0.06s linear, top 0.06s linear';
+
+                currentIndex++;
+                setTimeout(moveToNext, 60);
+            }
+
+            moveToNext();
+        }
+
+        const defaultBenchmarks = {
+            normal: {
+                lightspeed: { 100: '0.479ms', 500: '0.455ms', 1000: '0.287ms' },
+                easystar: { 100: '4.445ms', 500: '7.098ms', 1000: '6.014ms' },
+                pathfinding: { 100: '17.401ms', 500: '32.137ms', 1000: '34.208ms' },
+                fastest: { 100: 'lightspeed', 500: 'lightspeed', 1000: 'lightspeed' }
+            },
+            worstCase: {
+                lightspeed: { 100: '1.100ms', 500: '24.851ms', 1000: '104.840ms' },
+                easystar: { 100: '1.465ms', 500: '47.606ms', 1000: '357.010ms' },
+                pathfinding: { 100: '1.009ms', 500: '53.090ms', 1000: '269.786ms' },
+                fastest: { 100: 'pathfinding', 500: 'lightspeed', 1000: 'lightspeed' }
+            }
+        };
+
+        // Initialize live benchmark data with defaults
+        let benchmarkData = JSON.parse(JSON.stringify(defaultBenchmarks));
+
+        function updateTableUI() {
+            const isWorstCase = document.getElementById('worst-case-toggle').checked;
+            const mode = isWorstCase ? 'worstCase' : 'normal';
+            const data = benchmarkData[mode];
+
+            const libs = ['lightspeed', 'easystar', 'pathfinding'];
+            const sizes = [100, 500, 1000];
+
+            libs.forEach(lib => {
+                sizes.forEach(size => {
+                    const value = data[lib][size];
+                    const isFastest = data.fastest[size] === lib;
+                    updateCell(lib, size, value, isFastest);
+                });
+            });
+
+            document.getElementById('benchmark-status').textContent = '';
+        }
+
+        function updateCell(lib, size, value, isFastest = false) {
+            const cell = document.querySelector(`#row-${lib} .cell-${size}`);
+            if (cell) {
+                cell.innerHTML = value;
+                if (isFastest) cell.classList.add('fast');
+                else cell.classList.remove('fast');
+            }
+        }
+
+        document.getElementById('worst-case-toggle').addEventListener('change', updateTableUI);
+
+        async function runBenchmarks() {
+            const isWorstCase = document.getElementById('worst-case-toggle').checked;
+            const btn = document.getElementById('run-benchmarks-btn');
+            const status = document.getElementById('benchmark-status');
+            const sizes = [100, 500, 1000];
+            const obstacleDensity = 0.1;
+            const ITERATIONS = 100;
+
+            btn.disabled = true;
+            btn.textContent = 'Benchmarking...';
+
+            const showSpinner = (size) => {
+                ['lightspeed', 'easystar', 'pathfinding'].forEach(lib => {
+                    updateCell(lib, size, '<div class="spinner"></div>');
+                });
+            };
+
+            try {
+                for (const size of sizes) {
+                    showSpinner(size);
+                    status.textContent = `Running ${size}x${size} benchmarks...`;
+                    await new Promise(r => setTimeout(r, 50));
+
+                    let totalLS = 0;
+                    let totalES = 0;
+                    let totalPF = 0;
+
+                    for (let i = 0; i < ITERATIONS; i++) {
+                        // 1. Generate random grid for this iteration
+                        const flatGrid = new Int32Array(size * size);
+                        for (let j = 0; j < flatGrid.length; j++) {
+                            flatGrid[j] = Math.random() < obstacleDensity ? 1 : 0;
+                        }
+
+                        const startX = 0, startY = 0;
+                        const endX = size - 1, endY = size - 1;
+                        flatGrid[startY * size + startX] = 0;
+                        flatGrid[endY * size + endX] = 0;
+
+                        // Worst case: surround end with walls
+                        if (document.getElementById('worst-case-toggle').checked) {
+                            const neighbors = [
+                                { x: endX - 1, y: endY },
+                                { x: endX, y: endY - 1 },
+                                { x: endX - 1, y: endY - 1 }
+                            ];
+                            neighbors.forEach(n => {
+                                if (n.x >= 0 && n.x < size && n.y >= 0 && n.y < size) {
+                                    flatGrid[n.y * size + n.x] = 1;
+                                }
+                            });
+                        }
+
+                        // 2. Lightspeed A*
+                        astarWorker.setGrid({ nodes: flatGrid, width: size, height: size });
+                        const lsStart = performance.now();
+                        await astarWorker.findPath(startX, startY, endX, endY);
+                        totalLS += (performance.now() - lsStart);
+
+                        // 3. EasyStarJS
+                        const esGrid = [];
+                        for (let y = 0; y < size; y++) {
+                            const row = [];
+                            for (let x = 0; x < size; x++) row.push(flatGrid[y * size + x]);
+                            esGrid.push(row);
+                        }
+                        const easystar = new EasyStar.js();
+                        easystar.setGrid(esGrid);
+                        easystar.setAcceptableTiles([0]);
+
+                        const esStart = performance.now();
+                        await new Promise(resolve => {
+                            easystar.findPath(startX, startY, endX, endY, resolve);
+                            easystar.calculate();
+                        });
+                        totalES += (performance.now() - esStart);
+
+                        // 4. pathfinding.js
+                        const gridInstance = new PF.Grid(size, size);
+                        for (let y = 0; y < size; y++) {
+                            for (let x = 0; x < size; x++) {
+                                gridInstance.setWalkableAt(x, y, flatGrid[y * size + x] === 0);
+                            }
+                        }
+                        const finder = new PF.AStarFinder();
+                        const pfStart = performance.now();
+                        finder.findPath(startX, startY, endX, endY, gridInstance);
+                        totalPF += (performance.now() - pfStart);
+
+                        if (i % 5 === 0) {
+                            status.textContent = `Running ${size}x${size} (${i + 1}/${ITERATIONS})...`;
+                            await new Promise(r => setTimeout(r, 0));
+                        }
+                    }
+
+                    const avgLS = totalLS / ITERATIONS;
+                    const avgES = totalES / ITERATIONS;
+                    const avgPF = totalPF / ITERATIONS;
+
+                    const mode = isWorstCase ? 'worstCase' : 'normal';
+                    benchmarkData[mode].lightspeed[size] = `${avgLS.toFixed(3)}ms`;
+                    benchmarkData[mode].easystar[size] = `${avgES.toFixed(3)}ms`;
+                    benchmarkData[mode].pathfinding[size] = `${avgPF.toFixed(3)}ms`;
+
+                    const results = [
+                        { lib: 'lightspeed', time: avgLS },
+                        { lib: 'easystar', time: avgES },
+                        { lib: 'pathfinding', time: avgPF }
+                    ].sort((a, b) => a.time - b.time);
+
+                    benchmarkData[mode].fastest[size] = results[0].lib;
+
+                    updateTableUI();
+                }
+                status.textContent = 'Benchmarks complete! ✨';
+            } catch (err) {
+                console.error(err);
+                status.textContent = `Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Real Benchmarks 🚀';
+            }
+        }
+
+        function copyInstallCmd() {
+            const cmd = document.getElementById('install-cmd').innerText;
+            navigator.clipboard.writeText(cmd).then(() => {
+                const feedback = document.getElementById('copy-feedback');
+                feedback.classList.add('show');
+                setTimeout(() => {
+                    feedback.classList.remove('show');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Debounced resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initGrid();
+            }, 300);
+        });
+
+        initGrid();
+    </script>
+
+</body>
+
+</html>

@@ -1,141 +1,149 @@
-# Lightspeed A*
+# Lightspeed-AStar.js
 
-A high-performance A* pathfinding library for web applications, built with Go and compiled to WebAssembly.
+A high-performance A* pathfinding library for web applications, built with C++ and compiled to WebAssembly for maximum speed.
 
 ## Overview
 
-This project implements the A* algorithm in Go to leverage its performance and strong typing, exposing the method to the browser via WebAssembly. It includes a TypeScript wrapper to interact with the WASM module easily, potentially within a Web Worker.
+This project implements the A* algorithm in C++ to leverage its raw performance and direct memory management, exposing the functionality to the browser via WebAssembly. It includes a TypeScript wrapper that runs the WASM module in a Web Worker, ensuring your main thread remains unblocked even during complex pathfinding operations.
 
-## Project Structure
+**Key Features:**
+- **C++ Performance**: Core logic compiled to optimized WebAssembly.
+- **Customizable**: Support for custom heuristics and neighbor logic via WASM side module.
+- **Non-blocking**: Pathfinding operations run in a Web Worker, keeping the main thread responsive.
 
-- `main.go`: The entry point for the WASM module. It bridges the Go `astar` package with the JavaScript runtime.
-- `astar/`: The core Go package containing the A* algorithm implementation.
-    - `astar.go`: Main logic and grid representation.
-    - `astar_test.go`: Unit tests.
-- `src/`: TypeScript source code for the client-side wrappers.
-    - `worker.ts`: The Web Worker entry point. It handles the lifecycle of the WASM module:
-        - Imports the `wasm_exec.js` bridge.
-        - Instantiates the `astar.wasm` module.
-        - Listens for `findPath` messages and invokes the exposed Go function.
-    - `AStarWorker.ts`: Main class for interacting with the worker.
-    - `wasm_exec.js`: The Go WASM execution shim (required to run Go WASM).
-- `dist/`: Build artifacts (compiled JS and WASM).
+## Installation
 
-## Design Decisions
-
-- **Go & WebAssembly**: Chosen for superior performance over pure JavaScript for CPU-intensive pathfinding tasks, especially on large grids.
-- **Web Workers**: Designed to run off the main thread to prevent UI blocking during calculation.
-- **Typed Interface**: TypeScript wrappers ensure type safety when interacting with the untyped WASM boundary.
-- **Customizable**: Supports custom heuristics and neighbor calculation via WASM imports (`//go:wasmimport`).
-
-## Custom Heuristics and Neighbors
-
-You can provide your own logic for heuristic calculation and neighbor retrieval by defining custom functions in the WASM `importObject`.
-
-### Requirements
-
-When instantiating the WASM module, provide the following in the `env` module:
-
-To use it, pass `"custom"` as the heuristic option. You can also provide an optional path to a custom WASM module that exports the logic.
-
-```javascript
-const astar = new AStarWorker("worker.js", {
-  customWasmPath: "my-custom-logic.wasm",
-  heuristic: "custom" 
-});
-
-// grid must be of type Grid: { nodes: Int32Array, width: number, height: number }
-astar.setGrid(grid);
-const path = await astar.findPath(startX, startY, endX, endY);
+```bash
+npm install lightspeed-astar
 ```
 
-See [examples/custom-heuristic/README.md](file:///home/saqib/workspace/lightspeed-astar/examples/custom-heuristic/README.md) for details on the WASM export requirements.
-
-## Benchmarking
-
-A dedicated interactive benchmark tool is provided to test performance and correctness visually.
-
-- **Source**: `benchmark/index.html` (The source file)
-- **Build Output**: `dist/index.html` (The runnable file, copied during build)
-- **Features**:
-    - Interactive Canvas grid (Draw Walls, Set Start/End)
-    - Real-time pathfinding visualization
-    - Performance timing (ms)
+*Note: As this is a project-specific library, you likely need to build it locally or include it in your workspace.*
 
 ## Usage
 
-Import the worker wrapper and create a new instance.
+### Basic Pathfinding
+
+1. **Import and Initialize**:
+   Create an instance of `AStarWorker`. You need to point it to the worker script (usually bundled with your app).
+
+   ```typescript
+   import { AStarWorker, createGridBuffer } from 'lightspeed-astar';
+
+   const astar = new AStarWorker();
+   ```
+
+2. **Prepare the Grid**:
+   For maximum performance, the grid uses a `SharedArrayBuffer` (passed as an `Int32Array`). A helper function `createGridBuffer` is provided to convert standard 2D arrays.
+
+   ```typescript
+   const myGrid = [
+       [0, 0, 0, 1, 0],
+       [0, 1, 0, 1, 0],
+       [0, 0, 0, 0, 0]
+   ];
+
+   // Convert to Int32Array backed by SharedArrayBuffer
+   const gridData = createGridBuffer(myGrid);
+
+   // Send grid to the worker (only needs to be done once or when grid changes)
+   astar.setGrid(gridData);
+   ```
+
+   *Note: `0` represents a walkable tile, `1` represents an obstacle.*
+
+3. **Find a Path**:
+   Call `findPath` with start and end coordinates.
+
+   ```typescript
+   try {
+       const path = await astar.findPath(0, 0, 4, 2);
+       console.log("Path found:", path); // [[0,0], [0,1], ...]
+   } catch (error) {
+       console.error("No path found or error occurred:", error);
+   }
+   ```
+
+### Configuration Options
+
+You can configure the behavior via the `AStarWorker` constructor.
 
 ```typescript
-import { AStarWorker, createGridBuffer } from './library.js';
-
-const astar = new AStarWorker("worker.js", { 
-    diagonalMovement: false, 
-    heuristic: "manhattan" 
+const astar = new AStarWorker({
+    traversalOptions: {
+        allowDiagonal: true // Allow diagonal movement
+    },
+    heuristicOptions: {
+        heuristic: "euclidean" // "manhattan" (default) or "euclidean"
+    }
 });
-
-// Option 1: Using the utility to convert 2D array
-const grid = createGridBuffer(my2DArray);
-astar.setGrid(grid);
-
-// Option 2: Providing a pre-allocated Int32Array (e.g. SharedArrayBuffer)
-astar.setGrid({
-    nodes: myInt32Array,
-    width: 20,
-    height: 20
-});
-
-const path = await astar.findPath(startX, startY, endX, endY);
 ```
 
-## Development Processes
+### Advanced: Custom Heuristics
+
+You can provide custom heuristic logic implemented as a WASM side module. See [examples/custom-heuristic](./examples/custom-heuristic) for an example.
+
+## Supported Environments
+
+### Browser
+
+Works well out of the box, nothing much to say here.
+
+### Node.js
+
+Limited support, but you can get it working with some extra steps. You'll need to pollyfill and mock some APIs (which is hacky) but we were able to get this working for node testing. 
+
+See `test/wasm_integration.node.ts` for an example of how to do this.
+
+## Project Structure
+
+- `src/`: TypeScript source code for the client-side library.
+    - `worker.ts`: The Web Worker entry point handling WASM instantiation and communication.
+    - `AStarWorker.ts`: The main class for user interaction.
+- `astar-cpp/`: The core C++ source code.
+    - `astar.cpp`: A* algorithm implementation.
+    - `wasm_glue.cpp`: Interface between C++ and JavaScript.
+- `dist/`: Build artifacts (transpiled JS and compiled WASM).
+- `examples/`: Usage examples.
+
+## Development
 
 ### Prerequisites
 
-- **Go**: Version 1.25.5 or later, OR **TinyGo 0.30+** (Recommended).
-- **Node.js**: For package management and building the JS wrapper.
+- **Node.js**: For building the TypeScript wrapper.
+- **Emscripten**: For compiling C++ to WebAssembly. Only necessary if modifying the C++ code.
 
-### Building parts
+### Build Instructions
 
-The project consists of two build steps: the Go WASM binary and the TypeScript glue code.
+1. **Initialize Emscripten and install it's dependencies**:
+   ```bash
+   git submodule update --init
+   cd emsdk
+   ./emsdk install latest
+   ./emsdk activate latest
+   ```
 
-#### 1. Build WebAssembly
+2. **Install JS Dependencies**:
+   ```bash
+   npm install
+   ```
 
-Compile the Go code into a `.wasm` binary.
-
-```bash
-GOOS=js GOARCH=wasm go build -o astar.wasm main.go
-```
-
-#### 2. Build JavaScript
-
-Use Webpack to bundle the TypeScript sources.
-
-```bash
-npm install
-npm run build
-```
+3. **Build**:
+   This command sets up the Emscripten environment, compiles the C++ code to `dist/astar.wasm`, and bundles the TypeScript code. The output is just a single file that can be included in your project.
+   ```bash
+   npm run build
+   ```
 
 ### Testing
 
-Run the Go unit tests for the core logic:
-
-```bash
-go test ./astar
-```
-
-### WASM Specifics
-
-This project relies on `wasm_exec.js` to bridge the Go runtime with the browser.
-
-- **What it is**: A JavaScript file provided by the Go installation that initializes the Go WASM environment (`Go` global object).
-- **Where it comes from**: It is located in your Go installation at `$GOROOT/misc/wasm/wasm_exec.js`.
-- **Integration**: It is bundled into the worker code during the build process, so no manual script tag is needed.
-
-```typescript
-// Internal logic (handled by worker.ts)
-const go = new Go();
-WebAssembly.instantiateStreaming(fetch("astar.wasm"), go.importObject).then((result) => {
-    go.run(result.instance);
-});
-```
+- **Unit Tests (Node.js)**:
+  ```bash
+  npm run test:node
+  ```
+- **Browser Tests**:
+  ```bash
+  npm run test:browser
+  ```
+- **C++ Tests**:
+  ```bash
+  make test
+  ```
