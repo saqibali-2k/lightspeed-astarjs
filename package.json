@@ -18,11 +18,16 @@
     "test:browser": "node scripts/test-browser.js"
   },
   "keywords": [
-    "AStar",
-    "Pathfinding",
-    "WebAssembly",
-    "Performance",
-    "Game Development"
+    "astar",
+    "pathfinding",
+    "webassembly",
+    "performance",
+    "game development",
+    "typescript",
+    "traversal",
+    "graph",
+    "custom",
+    "fast"
   ],
   "author": "",
   "license": "MIT",
