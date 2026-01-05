@@ -2,6 +2,8 @@
 
 A high-performance A* pathfinding library for web applications, built with C++ and compiled to WebAssembly for maximum speed.
 
+[https://saqib-ali.com/lightspeed-astarjs/](https://saqib-ali.com/lightspeed-astarjs/)
+
 ## Overview
 
 This project implements the A* algorithm in C++ to leverage its raw performance and direct memory management, exposing the functionality to the browser via WebAssembly. It includes a TypeScript wrapper that runs the WASM module in a Web Worker, ensuring your main thread remains unblocked even during complex pathfinding operations.
@@ -10,6 +12,7 @@ This project implements the A* algorithm in C++ to leverage its raw performance 
 - **C++ Performance**: Core logic compiled to optimized WebAssembly.
 - **Customizable**: Support for custom heuristics and neighbor logic via WASM side module.
 - **Non-blocking**: Pathfinding operations run in a Web Worker, keeping the main thread responsive.
+- **Simple Configuration**: Library entry-point, worker, and WASM logic is bundled into a single file.
 
 ## Installation
 
@@ -17,7 +20,6 @@ This project implements the A* algorithm in C++ to leverage its raw performance 
 npm install lightspeed-astar
 ```
 
-*Note: As this is a project-specific library, you likely need to build it locally or include it in your workspace.*
 
 ## Usage
 

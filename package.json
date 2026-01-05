@@ -1,5 +1,5 @@
 {
-  "name": "lightspeed-astar",
+  "name": "lightspeed-astarjs",
   "version": "1.0.0",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -19,12 +19,13 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "",
   "files": [
-    "dist/library.js",
-    "dist/worker.js",
-    "dist/astar.wasm"
+    "dist/index.js",
+    "dist/index.mjs",
+    "dist/index.d.ts",
+    "dist/index.d.mts"
   ],
   "devDependencies": {
     "@playwright/test": "^1.57.0",
