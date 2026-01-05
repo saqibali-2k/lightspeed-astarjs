@@ -210,6 +210,14 @@
             box-shadow: 0 6px 20px rgba(255, 179, 217, 0.6);
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.3);
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
         #grid {
             display: grid;
             gap: 2px;
@@ -410,12 +418,6 @@
             min-height: 1.2em;
         }
 
-        .fast {
-
-            color: #90ee90;
-            font-weight: bold;
-        }
-
         footer {
             text-align: center;
             padding: 40px;
@@ -553,6 +555,16 @@
             transform: translateX(26px);
         }
 
+        input:disabled+.slider {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        input:disabled+.slider:before {
+            background-color: #666;
+        }
+
         /* Tooltip Styles */
         .tooltip {
             position: relative;
@@ -632,7 +644,7 @@
                 </div>
             </div>
             <div class="demo-controls">
-                <button onclick="findPath()">Find Path 🌟</button>
+                <button id="find-path-btn" onclick="findPath()">Find Path 🌟</button>
                 <button onclick="clearPath()">Clear Path</button>
                 <button onclick="resetGrid()">Reset Grid</button>
                 <button onclick="randomWalls()">Random Asteroids</button>
@@ -696,7 +708,7 @@
                 </table>
             </div>
             <p style="text-align: center; margin-top: 20px; color: #ffd1dc;">
-                * Benchmarked with 10% obstacles and 100 iterations per grid size. Times are in ms.
+                * Benchmarked with 10% obstacles and 100 iterations per grid size.
             </p>
         </div>
 
@@ -738,8 +750,27 @@
         let grid = [];
         let start = { x: 2, y: 2 };
         let end = { x: COLS - 3, y: ROWS - 3 };
+        let pathTimeouts = [];
+        let shipTimeout = null;
+
+        function cancelAnimations() {
+            // Clear path point timeouts
+            pathTimeouts.forEach(t => clearTimeout(t));
+            pathTimeouts = [];
+
+            // Clear spaceship timeout
+            if (shipTimeout) {
+                clearTimeout(shipTimeout);
+                shipTimeout = null;
+            }
+
+            // Remove spaceship element
+            const ship = document.querySelector('.spaceship');
+            if (ship) ship.remove();
+        }
 
         function initGrid() {
+            cancelAnimations();
             const gridEl = document.getElementById('grid');
             const containerWidth = document.querySelector('.demo-section').offsetWidth - 80; // Padding
 
@@ -807,21 +838,19 @@
             }
         }
 
-        function clearPath(resetText = true) {
+        function clearPath() {
+            cancelAnimations();
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
                     grid[y][x].element.classList.remove('path', 'visited');
                 }
             }
 
-            if (resetText) {
-                document.getElementById('stats').textContent = 'Path cleared! Ready for a new search.';
-            }
         }
 
         function resetGrid() {
             initGrid();
-            document.getElementById('stats').textContent = 'Grid reset! Click "Find Path" to see the magic!';
+            document.getElementById('stats').textContent = '';
         }
 
         function randomWalls() {
@@ -849,7 +878,7 @@
         }
 
         async function findPath() {
-            clearPath(false);
+            clearPath();
             const startTime = performance.now();
 
             // Convert current grid to numeric format for AStarWorker
@@ -867,19 +896,21 @@
                     const formattedPath = path.map(([x, y]) => ({ x, y }));
 
                     // Basic animation delay
-                    setTimeout(() => {
+                    const mainDelay = setTimeout(() => {
                         formattedPath.forEach((p, i) => {
-                            setTimeout(() => {
+                            const t = setTimeout(() => {
                                 if (!(p.x === start.x && p.y === start.y) && !(p.x === end.x && p.y === end.y)) {
                                     grid[p.y][p.x].element.classList.add('path');
                                 }
                             }, i * 30);
+                            pathTimeouts.push(t);
                         });
 
                         animateSpaceship(formattedPath);
                         document.getElementById('stats').textContent =
                             `✨ Path found! Length: ${path.length} steps | Time: ${findTime}ms`;
                     }, 100);
+                    pathTimeouts.push(mainDelay);
                 } else {
                     document.getElementById('stats').textContent =
                         `❌ No path found! Time: ${findTime}ms`;
@@ -943,7 +974,7 @@
                 spaceship.style.transition = 'left 0.06s linear, top 0.06s linear';
 
                 currentIndex++;
-                setTimeout(moveToNext, 60);
+                shipTimeout = setTimeout(moveToNext, 60);
             }
 
             moveToNext();
@@ -951,9 +982,9 @@
 
         const defaultBenchmarks = {
             normal: {
-                lightspeed: { 100: '0.479ms', 500: '0.455ms', 1000: '0.287ms' },
-                easystar: { 100: '4.445ms', 500: '7.098ms', 1000: '6.014ms' },
-                pathfinding: { 100: '17.401ms', 500: '32.137ms', 1000: '34.208ms' },
+                lightspeed: { 100: '0.479ms', 500: '4.445ms', 1000: '17.401ms' },
+                easystar: { 100: '0.445ms', 500: '7.098ms', 1000: '32.137ms' },
+                pathfinding: { 100: '0.287ms', 500: '6.014ms', 1000: '34.208ms' },
                 fastest: { 100: 'lightspeed', 500: 'lightspeed', 1000: 'lightspeed' }
             },
             worstCase: {
@@ -978,27 +1009,26 @@
             libs.forEach(lib => {
                 sizes.forEach(size => {
                     const value = data[lib][size];
-                    const isFastest = data.fastest[size] === lib;
-                    updateCell(lib, size, value, isFastest);
+                    updateCell(lib, size, value);
                 });
             });
 
             document.getElementById('benchmark-status').textContent = '';
         }
 
-        function updateCell(lib, size, value, isFastest = false) {
+        function updateCell(lib, size, value) {
             const cell = document.querySelector(`#row-${lib} .cell-${size}`);
             if (cell) {
                 cell.innerHTML = value;
-                if (isFastest) cell.classList.add('fast');
-                else cell.classList.remove('fast');
             }
         }
 
         document.getElementById('worst-case-toggle').addEventListener('change', updateTableUI);
 
         async function runBenchmarks() {
-            const isWorstCase = document.getElementById('worst-case-toggle').checked;
+            const toggle = document.getElementById('worst-case-toggle');
+            const findPathBtn = document.getElementById('find-path-btn');
+            const isWorstCase = toggle.checked;
             const btn = document.getElementById('run-benchmarks-btn');
             const status = document.getElementById('benchmark-status');
             const sizes = [100, 500, 1000];
@@ -1006,6 +1036,8 @@
             const ITERATIONS = 100;
 
             btn.disabled = true;
+            findPathBtn.disabled = true;
+            toggle.disabled = true;
             btn.textContent = 'Benchmarking...';
 
             const showSpinner = (size) => {
@@ -1117,6 +1149,8 @@
                 status.textContent = `Error: ${err.message}`;
             } finally {
                 btn.disabled = false;
+                findPathBtn.disabled = false;
+                toggle.disabled = false;
                 btn.textContent = 'Run Real Benchmarks 🚀';
             }
         }
