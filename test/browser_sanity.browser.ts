@@ -17,7 +17,7 @@ test.describe('AStarWorker Browser Integration', () => {
     test('should find a simple path', async ({ page }) => {
         const result = await page.evaluate(async () => {
             const { AStarWorker, createGridBuffer } = window.AStarLib;
-            const astar = new AStarWorker({});
+            const astar = new AStarWorker();
 
             // Simple 3x3 grid
             // S . .
@@ -46,7 +46,7 @@ test.describe('AStarWorker Browser Integration', () => {
 
         const result = await page.evaluate(async () => {
             const { AStarWorker } = window.AStarLib;
-            const astar = new AStarWorker({});
+            const astar = new AStarWorker();
 
             // 1000x1000 grid
             const width = 1000;

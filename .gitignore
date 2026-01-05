@@ -2,3 +2,4 @@ dist
 node_modules
 benchmark/*.js*
 test-results
+test_runner*

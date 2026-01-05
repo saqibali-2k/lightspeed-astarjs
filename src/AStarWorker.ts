@@ -55,7 +55,7 @@ export class AStarWorker {
     // Keep track if we created an object URL to revoke it later if needed (optional)
     private objectUrl?: string;
 
-    constructor(options: Options) {
+    constructor(options: Options = {}) {
         if (!WORKER_CODE) {
             throw new Error("WORKER_CODE is not defined, library was likely built incorrectly");
         }
