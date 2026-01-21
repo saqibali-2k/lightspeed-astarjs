@@ -1,6 +1,6 @@
 # Lightspeed-AStar.js
 
-A high-performance A* pathfinding library for web applications, built with C++ and compiled to WebAssembly for maximum speed.
+A high-performance A* pathfinding library for web applications, built with C++ and compiled to WebAssembly for maximum speed. Up to **3.5x** faster than alternatives (see benchmarks on landing page below).
 
 [https://saqib-ali.com/lightspeed-astarjs/](https://saqib-ali.com/lightspeed-astarjs/)
 
@@ -87,9 +87,10 @@ const astar = new AStarWorker({
 });
 ```
 
-### Advanced: Custom Heuristics
+### Advanced: Custom Heuristics and Neighbor Logic
 
-You can provide custom heuristic logic implemented as a WASM side module. See [examples/custom-heuristic](./examples/custom-heuristic) for an example.
+You can provide custom heuristic and neighbor logic implemented as a WASM side module. See [examples/custom-heuristic](./examples/custom-heuristic) for an example where we have two types of obstacles (1 and 2), and 
+we create a heuristic where we want to minimize the number of turns in our path along with the length of the path.
 
 ## Supported Environments
 

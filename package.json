@@ -27,7 +27,11 @@
     "traversal",
     "graph",
     "custom",
-    "fast"
+    "fast",
+    "A*",
+    "search",
+    "non-blocking",
+    "web worker"
   ],
   "license": "MIT",
   "description": "",
